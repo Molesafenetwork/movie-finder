@@ -1,0 +1,319 @@
+<%- include('partials/header') %>
+
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Home</a></li>
+          <li class="breadcrumb-item"><a href="/queue">Queue Manager</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Search Results</li>
+        </ol>
+      </nav>
+      
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Search Results for "<%= searchQuery %>"</h5>
+          <span class="badge bg-primary"><%= results.length %> results</span>
+        </div>
+        
+        <div class="card-body">
+          <% if (results && results.length > 0) { %>
+            <div class="row">
+              <% results.forEach((result, index) => { %>
+                <div class="col-md-6 mb-4">
+                  <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                      <h6 class="mb-0 text-truncate" title="<%= result.title %>"><%= result.title %></h6>
+                      <span class="badge <%= result.mediaType === 'movie' ? 'bg-primary' : (result.mediaType === 'show' ? 'bg-success' : 'bg-secondary') %>">
+                        <%= result.mediaType === 'movie' ? 'Movie' : (result.mediaType === 'show' ? 'TV Show' : 'Trailer') %>
+                      </span>
+                    </div>
+                    
+                    <div class="card-body">
+                      <div class="row mb-2">
+                        <div class="col-4 text-muted">Source:</div>
+                        <div class="col-8"><%= result.source || 'Unknown' %></div>
+                      </div>
+                      <% if (result.showName) { %>
+                        <div class="row mb-2">
+                          <div class="col-4 text-muted">Show:</div>
+                          <div class="col-8"><%= result.showName %></div>
+                        </div>
+                      <% } %>
+                      <% if (result.season) { %>
+                        <div class="row mb-2">
+                          <div class="col-4 text-muted">Season:</div>
+                          <div class="col-8"><%= result.season %></div>
+                        </div>
+                      <% } %>
+                      <% if (result.episode) { %>
+                        <div class="row mb-2">
+                          <div class="col-4 text-muted">Episode:</div>
+                          <div class="col-8"><%= result.episode %></div>
+                        </div>
+                      <% } %>
+                      <div class="row mb-2">
+                        <div class="col-4 text-muted">Quality:</div>
+                        <div class="col-8"><%= result.quality || 'Unknown' %></div>
+                      </div>
+                      <div class="row mb-2">
+                        <div class="col-4 text-muted">Size:</div>
+                        <div class="col-8"><%= result.size || 'Unknown' %></div>
+                      </div>
+                      <div class="row mb-2">
+                        <div class="col-4 text-muted">Format:</div>
+                        <div class="col-8"><%= result.format || 'mp4' %></div>
+                      </div>
+                      <div class="row mt-3">
+                        <div class="col-12">
+                          <a href="<%= result.url %>" target="_blank" class="btn btn-sm btn-outline-secondary w-100 mb-2">
+                            View Source
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="card-footer">
+                      <div class="btn-group w-100">
+                        <% if (result.pendingApprovalId) { %>
+                          <a href="/preview/<%= result.pendingApprovalId %>" class="btn btn-primary">Preview</a>
+                        <% } else { %>
+                          <button class="btn btn-primary submit-for-approval" 
+                                  data-title="<%= result.title %>" 
+                                  data-url="<%= result.url %>" 
+                                  data-media-type="<%= result.mediaType %>" 
+                                  data-size="<%= result.size || 'Unknown' %>" 
+                                  data-quality="<%= result.quality || 'Unknown' %>" 
+                                  data-format="<%= result.format || 'mp4' %>" 
+                                  data-source="<%= result.source || 'Web' %>"
+                                  <% if (result.showName) { %>data-show-name="<%= result.showName %>"<% } %>
+                                  <% if (result.season) { %>data-season="<%= result.season %>"<% } %>
+                                  <% if (result.episode) { %>data-episode="<%= result.episode %>"<% } %>>
+                            Submit for Approval
+                          </button>
+                        <% } %>
+                        
+                        <div class="btn-group media-type-options" role="group">
+                          <button id="mediaTypeBtn<%= index %>" type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            Set Type
+                          </button>
+                          <ul class="dropdown-menu" aria-labelledby="mediaTypeBtn<%= index %>">
+                            <li><button class="dropdown-item set-media-type" data-result-index="<%= index %>" data-media-type="movie">Movie</button></li>
+                            <li><button class="dropdown-item set-media-type" data-result-index="<%= index %>" data-media-type="show">TV Show</button></li>
+                            <li><button class="dropdown-item set-media-type" data-result-index="<%= index %>" data-media-type="trailer">Trailer</button></li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          <% } else { %>
+            <div class="alert alert-info">
+              No results found for "<%= searchQuery %>". Try a different search term or check our <a href="/queue">Queue Manager</a>.
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for submitting content for approval -->
+<div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="approvalModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="approvalModalLabel">Submit for Approval</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="approvalForm">
+          <div class="mb-3">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" class="form-control" id="title" name="title" required>
+          </div>
+          <div class="mb-3">
+            <label for="url" class="form-label">URL</label>
+            <input type="url" class="form-control" id="url" name="url" required>
+          </div>
+          <div class="mb-3">
+            <label for="mediaType" class="form-label">Media Type</label>
+            <select class="form-select" id="mediaType" name="mediaType" required>
+              <option value="movie">Movie</option>
+              <option value="show">TV Show</option>
+              <option value="trailer">Trailer</option>
+            </select>
+          </div>
+          <div class="mb-3" id="showNameField" style="display:none;">
+            <label for="showName" class="form-label">Show Name</label>
+            <input type="text" class="form-control" id="showName" name="showName">
+          </div>
+          <div class="row" id="seasonEpisodeFields" style="display:none;">
+            <div class="col-md-6 mb-3">
+              <label for="season" class="form-label">Season</label>
+              <input type="number" class="form-control" id="season" name="season" min="1" value="1">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="episode" class="form-label">Episode</label>
+              <input type="number" class="form-control" id="episode" name="episode" min="1" value="1">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="format" class="form-label">Format</label>
+            <select class="form-select" id="format" name="format">
+              <option value="mp4">MP4</option>
+              <option value="mkv">MKV</option>
+              <option value="avi">AVI</option>
+              <option value="webm">WebM</option>
+            </select>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="quality" class="form-label">Quality</label>
+              <input type="text" class="form-control" id="quality" name="quality" value="720p">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="size" class="form-label">Size</label>
+              <input type="text" class="form-control" id="size" name="size" value="Unknown">
+            </div>
+          </div>
+          <input type="hidden" id="source" name="source" value="Web">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submitApproval">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide additional fields based on media type
+    document.getElementById('mediaType').addEventListener('change', function() {
+      const mediaType = this.value;
+      if (mediaType === 'show') {
+        document.getElementById('showNameField').style.display = 'block';
+        document.getElementById('seasonEpisodeFields').style.display = 'flex';
+      } else {
+        document.getElementById('showNameField').style.display = 'none';
+        document.getElementById('seasonEpisodeFields').style.display = 'none';
+      }
+    });
+    
+    // Handle "Submit for Approval" button clicks
+    const submitButtons = document.querySelectorAll('.submit-for-approval');
+    submitButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('approvalModal'));
+        
+        // Populate form with data from button attributes
+        document.getElementById('title').value = this.getAttribute('data-title');
+        document.getElementById('url').value = this.getAttribute('data-url');
+        document.getElementById('mediaType').value = this.getAttribute('data-media-type');
+        document.getElementById('quality').value = this.getAttribute('data-quality');
+        document.getElementById('size').value = this.getAttribute('data-size');
+        document.getElementById('format').value = this.getAttribute('data-format') || 'mp4';
+        document.getElementById('source').value = this.getAttribute('data-source');
+        
+        // Handle TV show specific fields
+        const showName = this.getAttribute('data-show-name');
+        const season = this.getAttribute('data-season');
+        const episode = this.getAttribute('data-episode');
+        
+        if (showName) {
+          document.getElementById('showName').value = showName;
+        }
+        
+        if (season) {
+          document.getElementById('season').value = season;
+        }
+        
+        if (episode) {
+          document.getElementById('episode').value = episode;
+        }
+        
+        // Update visibility of conditional fields
+        const mediaType = this.getAttribute('data-media-type');
+        if (mediaType === 'show') {
+          document.getElementById('showNameField').style.display = 'block';
+          document.getElementById('seasonEpisodeFields').style.display = 'flex';
+        } else {
+          document.getElementById('showNameField').style.display = 'none';
+          document.getElementById('seasonEpisodeFields').style.display = 'none';
+        }
+        
+        modal.show();
+      });
+    });
+    
+    // Handle media type change buttons
+    const mediaTypeButtons = document.querySelectorAll('.set-media-type');
+    mediaTypeButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const resultIndex = this.getAttribute('data-result-index');
+        const mediaType = this.getAttribute('data-media-type');
+        const resultElement = document.querySelectorAll('.submit-for-approval')[resultIndex];
+        
+        if (resultElement) {
+          // Update data attribute
+          resultElement.setAttribute('data-media-type', mediaType);
+          
+          // Update badge display
+          const badge = resultElement.closest('.card').querySelector('.badge');
+          badge.className = 'badge ' + (mediaType === 'movie' ? 'bg-primary' : (mediaType === 'show' ? 'bg-success' : 'bg-secondary'));
+          badge.textContent = mediaType === 'movie' ? 'Movie' : (mediaType === 'show' ? 'TV Show' : 'Trailer');
+        }
+      });
+    });
+    
+    // Handle form submission
+    document.getElementById('submitApproval').addEventListener('click', function() {
+      const form = document.getElementById('approvalForm');
+      const formData = {
+        title: document.getElementById('title').value,
+        url: document.getElementById('url').value,
+        mediaType: document.getElementById('mediaType').value,
+        format: document.getElementById('format').value,
+        quality: document.getElementById('quality').value,
+        size: document.getElementById('size').value,
+        source: document.getElementById('source').value
+      };
+      
+      // Add TV show specific fields if needed
+      if (formData.mediaType === 'show') {
+        formData.showName = document.getElementById('showName').value;
+        formData.season = document.getElementById('season').value;
+        formData.episode = document.getElementById('episode').value;
+      }
+      
+      // Submit to server
+      fetch('/api/submit-approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Redirect to preview page
+          window.location.href = `/preview/${data.approvalId}`;
+        } else {
+          alert('Error: ' + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while submitting for approval.');
+      });
+    });
+  });
+</script>
+
+<%- include('partials/footer') %> 

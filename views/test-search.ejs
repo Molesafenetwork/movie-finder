@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Search API</title>
+</head>
+<body>
+  <h1>Test Search API</h1>
+  <form id="searchForm">
+    <div>
+      <label for="query">Search Query:</label>
+      <input type="text" id="query" name="query" value="Stranger Things" required>
+    </div>
+    <div>
+      <label for="mediaType">Media Type:</label>
+      <select id="mediaType" name="mediaType">
+        <option value="all">All</option>
+        <option value="movie">Movie</option>
+        <option value="show" selected>TV Show</option>
+      </select>
+    </div>
+    <div>
+      <label for="includeTor">Include Alternative Sources:</label>
+      <input type="checkbox" id="includeTor" name="includeTor" checked>
+    </div>
+    <button type="submit">Search</button>
+  </form>
+
+  <div id="results">
+    <h2>Results</h2>
+    <pre id="output"></pre>
+  </div>
+
+  <script>
+    document.getElementById('searchForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const query = document.getElementById('query').value;
+      const mediaType = document.getElementById('mediaType').value;
+      const includeTor = document.getElementById('includeTor').checked;
+      
+      const payload = {
+        query: query,
+        mediaType: mediaType,
+        includeTor: includeTor
+      };
+      
+      try {
+        document.getElementById('output').textContent = 'Searching...';
+        
+        const response = await fetch('/api/search', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('output').textContent = 'Error: ' + error.message;
+      }
+    });
+  </script>
+</body>
+</html> 

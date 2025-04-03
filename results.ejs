@@ -1,0 +1,321 @@
+<%- include('partials/header') %>
+
+<div class="container mt-4">
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Home</a></li>
+          <li class="breadcrumb-item"><a href="/find">Find Content</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Search Results</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col">
+      <h1>Search Results: <span id="searchQuery"></span></h1>
+      <div id="searchStatus" class="alert alert-info">
+        <div class="d-flex align-items-center">
+          <div class="spinner-border spinner-border-sm me-2" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <span id="statusMessage">Loading search status...</span>
+        </div>
+        <div class="progress mt-2">
+          <div id="searchProgress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultsContainer" class="row">
+    <!-- Results will be loaded here -->
+    <div class="col-12 text-center py-5" id="loadingResults">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Loading results...</p>
+    </div>
+    
+    <div class="col-12 py-5 d-none" id="noResults">
+      <div class="alert alert-warning">
+        <h4>No results found</h4>
+        <p>Try a different search query or include alternative sources.</p>
+        <a href="/find" class="btn btn-primary">Try Another Search</a>
+      </div>
+    </div>
+    
+    <div id="resultsList" class="row g-4">
+      <!-- Results will be populated here -->
+    </div>
+  </div>
+</div>
+
+<!-- Result Item Template -->
+<template id="resultItemTemplate">
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="badge bg-primary media-type-badge">Movie</span>
+        <span class="badge bg-secondary source-badge">YouTube</span>
+      </div>
+      <div class="card-body">
+        <h5 class="card-title result-title">Title</h5>
+        <p class="card-text result-details">
+          <small class="text-muted">
+            Format: <span class="result-format">MP4</span> | 
+            Size: <span class="result-size">Unknown</span>
+          </small>
+        </p>
+        <div class="mb-3 result-metadata">
+          <!-- Metadata fields will be added here -->
+        </div>
+        <a href="#" class="result-url text-truncate d-block mb-3" target="_blank">Source link</a>
+      </div>
+      <div class="card-footer">
+        <div class="d-flex justify-content-between">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Add as...
+            </button>
+            <ul class="dropdown-menu">
+              <li><button class="dropdown-item submit-btn" data-media-type="movie">Movie</button></li>
+              <li><button class="dropdown-item submit-btn" data-media-type="show">TV Show</button></li>
+              <li><button class="dropdown-item submit-btn" data-media-type="trailer">Trailer</button></li>
+            </ul>
+          </div>
+          <a href="#" class="btn btn-sm btn-primary preview-btn">Preview</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Get the search ID from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const searchId = urlParams.get('id');
+  
+  if (!searchId) {
+    document.getElementById('searchStatus').innerHTML = '<div class="alert alert-danger">No search ID provided. Please start a new search.</div>';
+    document.getElementById('loadingResults').classList.add('d-none');
+    return;
+  }
+  
+  // Poll for search status
+  let statusInterval;
+  let resultsFetched = false;
+  
+  function checkSearchStatus() {
+    fetch(`/api/search-status/${searchId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Search not found');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.status === 'success') {
+          const search = data.search;
+          
+          // Update search info
+          document.getElementById('searchQuery').textContent = search.query;
+          document.getElementById('searchProgress').style.width = `${search.progress}%`;
+          document.getElementById('searchProgress').textContent = `${search.progress}%`;
+          document.getElementById('searchProgress').setAttribute('aria-valuenow', search.progress);
+          
+          // Update status message
+          let statusMessage = '';
+          switch(search.status) {
+            case 'searching':
+              statusMessage = 'Searching for content...';
+              break;
+            case 'processing':
+              statusMessage = 'Processing results...';
+              break;
+            case 'complete':
+              statusMessage = `Search complete. Found ${search.resultsCount} results.`;
+              // Clear the interval once complete
+              clearInterval(statusInterval);
+              document.getElementById('searchStatus').classList.remove('alert-info');
+              document.getElementById('searchStatus').classList.add('alert-success');
+              document.querySelector('#searchStatus .spinner-border').classList.add('d-none');
+              break;
+            default:
+              statusMessage = 'Initializing search...';
+          }
+          document.getElementById('statusMessage').textContent = statusMessage;
+          
+          // Fetch results if search is complete or in progress with some results
+          if ((search.status === 'complete' || search.progress > 20) && !resultsFetched) {
+            fetchSearchResults();
+            resultsFetched = true;
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error checking search status:', error);
+        document.getElementById('searchStatus').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        clearInterval(statusInterval);
+      });
+  }
+  
+  // Initial status check
+  checkSearchStatus();
+  
+  // Set up polling interval (every 2 seconds)
+  statusInterval = setInterval(checkSearchStatus, 2000);
+  
+  // Function to fetch search results
+  function fetchSearchResults() {
+    fetch(`/api/search-results/${searchId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch results');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.status === 'success') {
+          displayResults(data.results || []);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching search results:', error);
+        document.getElementById('loadingResults').classList.add('d-none');
+        document.getElementById('resultsContainer').innerHTML += `<div class="alert alert-danger">Error loading results: ${error.message}</div>`;
+      });
+  }
+  
+  // Function to display results
+  function displayResults(results) {
+    const resultsList = document.getElementById('resultsList');
+    const loadingElement = document.getElementById('loadingResults');
+    const noResultsElement = document.getElementById('noResults');
+    const resultTemplate = document.getElementById('resultItemTemplate');
+    
+    // Hide loading
+    loadingElement.classList.add('d-none');
+    
+    // Check if there are results
+    if (!results || results.length === 0) {
+      noResultsElement.classList.remove('d-none');
+      return;
+    }
+    
+    // Clear existing results
+    resultsList.innerHTML = '';
+    
+    // Add results to the list
+    results.forEach((result, index) => {
+      const resultItem = document.importNode(resultTemplate.content, true);
+      
+      // Set result data
+      resultItem.querySelector('.result-title').textContent = result.title || 'Untitled';
+      resultItem.querySelector('.media-type-badge').textContent = result.mediaType || 'Unknown';
+      resultItem.querySelector('.source-badge').textContent = result.source || 'Web';
+      resultItem.querySelector('.result-format').textContent = result.format || 'Unknown';
+      resultItem.querySelector('.result-size').textContent = result.size || 'Unknown';
+      
+      const resultUrl = resultItem.querySelector('.result-url');
+      resultUrl.href = result.url;
+      resultUrl.textContent = result.url;
+      
+      // Set metadata (season, episode, etc.)
+      const metadataDiv = resultItem.querySelector('.result-metadata');
+      if (result.mediaType === 'show') {
+        if (result.season || result.episode) {
+          const seasonInfo = document.createElement('div');
+          seasonInfo.innerHTML = `<small class="text-muted">Season: ${result.season || 'Unknown'} | Episode: ${result.episode || 'Unknown'}</small>`;
+          metadataDiv.appendChild(seasonInfo);
+        }
+        
+        if (result.showName && result.showName !== result.title) {
+          const showInfo = document.createElement('div');
+          showInfo.innerHTML = `<small class="text-muted">Show: ${result.showName}</small>`;
+          metadataDiv.appendChild(showInfo);
+        }
+      }
+      
+      // Set up preview button
+      const previewBtn = resultItem.querySelector('.preview-btn');
+      if (result.isYouTube) {
+        previewBtn.href = `/preview?url=${encodeURIComponent(result.url)}&title=${encodeURIComponent(result.title)}&mediaType=${result.mediaType || 'movie'}`;
+      } else {
+        previewBtn.href = result.url;
+        previewBtn.setAttribute('target', '_blank');
+      }
+      
+      // Set up submission buttons
+      const submitBtns = resultItem.querySelectorAll('.submit-btn');
+      submitBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const mediaType = this.getAttribute('data-media-type');
+          submitForApproval(result, mediaType);
+        });
+      });
+      
+      // Add the result to the list
+      resultsList.appendChild(resultItem);
+    });
+  }
+  
+  // Function to submit content for approval
+  function submitForApproval(result, mediaType) {
+    // Create the approval object
+    const approvalData = {
+      url: result.url,
+      title: result.title,
+      mediaType: mediaType,
+      format: result.format,
+      size: result.size,
+      source: result.source,
+      isYouTube: result.isYouTube || false
+    };
+    
+    // If it's a show, add season and episode
+    if (mediaType === 'show') {
+      approvalData.showName = result.showName || result.title;
+      approvalData.season = result.season || 1;
+      approvalData.episode = result.episode || 1;
+    }
+    
+    // Send the approval request
+    fetch('/api/submit-approval', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(approvalData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to submit for approval');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.status === 'success') {
+        // Show success message
+        alert(`Successfully submitted "${result.title}" as ${mediaType}`);
+        
+        // If there's a redirect URL, go there
+        if (data.redirect) {
+          window.location.href = data.redirect;
+        }
+      } else {
+        throw new Error(data.message || 'Unknown error');
+      }
+    })
+    .catch(error => {
+      console.error('Error submitting for approval:', error);
+      alert(`Error: ${error.message}`);
+    });
+  }
+});
+</script>
+
+<%- include('partials/footer') %> 

@@ -1,0 +1,153 @@
+/* Main styles for Media Server */
+
+/* Global styles */
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  flex: 1;
+}
+
+footer {
+  margin-top: auto;
+}
+
+/* Cards and content */
+.card {
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.direct-video-card {
+  border: 2px solid #20c997;
+  box-shadow: 0 0 10px rgba(32, 201, 151, 0.3);
+}
+
+.direct-video-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 10;
+}
+
+/* Progress bars */
+.progress {
+  height: 0.5rem;
+  border-radius: 3px;
+}
+
+.search-progress {
+  height: 5px;
+}
+
+/* Log styles */
+.crawler-activity {
+  max-height: 500px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: #212529;
+  color: #f8f9fa;
+  padding: 10px;
+  margin-top: 20px;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.log-entry {
+  padding: 5px 0;
+  border-bottom: 1px solid #343a40;
+  margin-bottom: 5px;
+}
+
+.log-time {
+  color: #6c757d;
+  font-size: 0.8em;
+}
+
+.log-source {
+  color: #0dcaf0;
+  font-weight: bold;
+}
+
+.log-message {
+  margin: 3px 0;
+}
+
+.log-url {
+  font-size: 0.8em;
+  word-break: break-all;
+}
+
+.log-info {
+  color: #f8f9fa;
+}
+
+.log-success {
+  color: #20c997;
+}
+
+.log-error {
+  color: #dc3545;
+}
+
+.log-warning {
+  color: #ffc107;
+}
+
+/* Source URLs in approval cards */
+.source-url {
+  word-break: break-all;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 3px;
+}
+
+/* Approval items */
+.approval-item {
+  transition: background-color 0.3s;
+  position: relative;
+}
+
+.approval-item:hover {
+  background-color: rgba(0,0,0,0.03);
+}
+
+/* Crawler log entries */
+.crawler-log-entry {
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #444;
+}
+
+.crawler-log-site {
+  color: #0dcaf0;
+}
+
+.crawler-log-message {
+  color: #adb5bd;
+}
+
+.crawler-log-timestamp {
+  color: #6c757d;
+  font-size: 0.8em;
+}
+
+.crawler-log-success {
+  color: #20c997;
+}
+
+.crawler-log-error {
+  color: #dc3545;
+} 

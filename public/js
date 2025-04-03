@@ -1,0 +1,414 @@
+// Media extractor client-side functionality
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Video URL import form handling
+  const importForm = document.getElementById('importVideoForm');
+  if (importForm) {
+    importForm.addEventListener('submit', function(e) {
+      const urlInput = document.getElementById('url');
+      if (!urlInput || !urlInput.value.trim()) {
+        e.preventDefault();
+        showAlert('Please enter a valid URL', 'danger');
+        return false;
+      }
+
+      // Simple URL validation
+      const url = urlInput.value.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        e.preventDefault();
+        showAlert('URL must start with http:// or https://', 'danger');
+        return false;
+      }
+
+      // Add loading state
+      const submitBtn = importForm.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+      }
+    });
+  }
+
+  // Extract info button (for testing)
+  const extractInfoBtn = document.getElementById('extractInfoBtn');
+  if (extractInfoBtn) {
+    extractInfoBtn.addEventListener('click', async function() {
+      const urlInput = document.getElementById('url');
+      if (!urlInput || !urlInput.value.trim()) {
+        showAlert('Please enter a valid URL', 'danger');
+        return;
+      }
+
+      const url = urlInput.value.trim();
+      
+      try {
+        extractInfoBtn.disabled = true;
+        extractInfoBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Extracting...';
+        
+        const response = await fetch('/api/extract-video-info', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showAlert(`Found video: ${data.title} (${data.platform})`, 'success');
+          
+          // If there's an info display element, update it
+          const infoEl = document.getElementById('videoInfoDisplay');
+          if (infoEl) {
+            infoEl.innerHTML = `
+              <div class="alert alert-info">
+                <h5>Video Information</h5>
+                <p><strong>Title:</strong> ${data.title}</p>
+                <p><strong>Platform:</strong> ${data.platform}</p>
+                ${data.duration ? `<p><strong>Duration:</strong> ${formatDuration(data.duration)}</p>` : ''}
+                <p><strong>Direct URL:</strong> <a href="${data.directUrl}" target="_blank">View Source</a></p>
+              </div>
+            `;
+          }
+        } else {
+          showAlert(`Error: ${data.error}`, 'danger');
+        }
+      } catch (error) {
+        showAlert(`Error: ${error.message}`, 'danger');
+      } finally {
+        extractInfoBtn.disabled = false;
+        extractInfoBtn.innerHTML = 'Extract Info';
+      }
+    });
+  }
+
+  // Handle approval button clicks
+  document.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id = this.getAttribute('data-id');
+      if (!id) return;
+      
+      try {
+        btn.disabled = true;
+        const loadingSpan = document.createElement('span');
+        loadingSpan.className = 'spinner-border spinner-border-sm';
+        loadingSpan.setAttribute('role', 'status');
+        loadingSpan.setAttribute('aria-hidden', 'true');
+        btn.innerHTML = '';
+        btn.appendChild(loadingSpan);
+        
+        const response = await fetch('/api/approve-content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showAlert('Content approved successfully', 'success');
+          // Remove the approval card
+          const card = btn.closest('.approval-item');
+          if (card) {
+            card.remove();
+          }
+        } else {
+          showAlert(`Error: ${data.error}`, 'danger');
+          btn.disabled = false;
+          btn.innerHTML = 'Approve';
+        }
+      } catch (error) {
+        showAlert(`Error: ${error.message}`, 'danger');
+        btn.disabled = false;
+        btn.innerHTML = 'Approve';
+      }
+    });
+  });
+  
+  // Handle reject button clicks
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id = this.getAttribute('data-id');
+      if (!id) return;
+      
+      try {
+        btn.disabled = true;
+        const loadingSpan = document.createElement('span');
+        loadingSpan.className = 'spinner-border spinner-border-sm';
+        loadingSpan.setAttribute('role', 'status');
+        loadingSpan.setAttribute('aria-hidden', 'true');
+        btn.innerHTML = '';
+        btn.appendChild(loadingSpan);
+        
+        const response = await fetch('/api/reject-content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showAlert('Content rejected', 'success');
+          // Remove the approval card
+          const card = btn.closest('.approval-item');
+          if (card) {
+            card.remove();
+          }
+        } else {
+          showAlert(`Error: ${data.error}`, 'danger');
+          btn.disabled = false;
+          btn.innerHTML = 'Reject';
+        }
+      } catch (error) {
+        showAlert(`Error: ${error.message}`, 'danger');
+        btn.disabled = false;
+        btn.innerHTML = 'Reject';
+      }
+    });
+  });
+
+  // Poll for updates to search status
+  setupStatusPolling();
+});
+
+// Show alert messages
+function showAlert(message, type = 'success') {
+  const alertsContainer = document.getElementById('alerts');
+  if (!alertsContainer) return;
+  
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type} alert-dismissible fade show`;
+  alert.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
+  
+  alertsContainer.appendChild(alert);
+  
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    alert.classList.remove('show');
+    setTimeout(() => alert.remove(), 150);
+  }, 5000);
+}
+
+// Format duration in seconds to MM:SS or HH:MM:SS
+function formatDuration(seconds) {
+  if (!seconds) return 'Unknown';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Poll for search status updates
+function setupStatusPolling() {
+  const searchContainer = document.getElementById('searchQueue');
+  if (!searchContainer) return;
+  
+  // Poll every 3 seconds
+  setInterval(async () => {
+    try {
+      const response = await fetch('/api/search-status');
+      const data = await response.json();
+      
+      if (data.success && data.searches && data.searches.length > 0) {
+        // Update the search table
+        const tbody = document.querySelector('#searchTable tbody');
+        if (tbody) {
+          // Clear existing rows
+          tbody.innerHTML = '';
+          
+          // Add new rows
+          data.searches.forEach(search => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${search.query}</td>
+              <td>${search.mediaType}</td>
+              <td>${search.status}</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" style="width: ${search.progress}%" 
+                       aria-valuenow="${search.progress}" aria-valuemin="0" aria-valuemax="100">
+                    ${search.progress}%
+                  </div>
+                </div>
+              </td>
+              <td>${new Date(search.createdAt).toLocaleString()}</td>
+              <td>${search.message || ''}</td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+      }
+      
+      // Also update pending approvals
+      const response2 = await fetch('/api/pending-approvals');
+      const data2 = await response2.json();
+      
+      if (data2.success && data2.approvals && data2.approvals.length > 0) {
+        const approvalsContainer = document.getElementById('pendingApprovals');
+        if (approvalsContainer) {
+          // Only update if there are new items
+          if (data2.approvals.length !== approvalsContainer.querySelectorAll('.approval-item').length) {
+            approvalsContainer.innerHTML = '';
+            
+            data2.approvals.forEach(approval => {
+              const card = document.createElement('div');
+              card.className = 'approval-item card mb-3';
+              card.innerHTML = `
+                <div class="card-body">
+                  <h5 class="card-title">${approval.title}</h5>
+                  <p class="card-text">
+                    <span class="badge bg-primary">${approval.platform}</span>
+                    ${approval.format ? `<span class="badge bg-secondary">${approval.format}</span>` : ''}
+                    ${approval.isConverted ? '<span class="badge bg-success">Converted</span>' : ''}
+                  </p>
+                  <div class="mb-2">
+                    <a href="${approval.url}" class="btn btn-sm btn-outline-primary" target="_blank">Preview</a>
+                    ${approval.originalUrl ? `<a href="${approval.originalUrl}" class="btn btn-sm btn-outline-secondary" target="_blank">Source</a>` : ''}
+                  </div>
+                  <div class="d-flex">
+                    <button class="approve-btn btn btn-success me-2" data-id="${approval.id}">Approve</button>
+                    <button class="reject-btn btn btn-danger" data-id="${approval.id}">Reject</button>
+                  </div>
+                </div>
+              `;
+              approvalsContainer.appendChild(card);
+            });
+            
+            // Re-attach event listeners
+            document.querySelectorAll('.approve-btn').forEach(btn => {
+              btn.addEventListener('click', async function() {
+                const id = this.getAttribute('data-id');
+                if (!id) return;
+                
+                try {
+                  btn.disabled = true;
+                  const loadingSpan = document.createElement('span');
+                  loadingSpan.className = 'spinner-border spinner-border-sm';
+                  loadingSpan.setAttribute('role', 'status');
+                  loadingSpan.setAttribute('aria-hidden', 'true');
+                  btn.innerHTML = '';
+                  btn.appendChild(loadingSpan);
+                  
+                  const response = await fetch('/api/approve-content', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id })
+                  });
+                  
+                  const data = await response.json();
+                  
+                  if (data.success) {
+                    showAlert('Content approved successfully', 'success');
+                    // Remove the approval card
+                    const card = btn.closest('.approval-item');
+                    if (card) {
+                      card.remove();
+                    }
+                  } else {
+                    showAlert(`Error: ${data.error}`, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Approve';
+                  }
+                } catch (error) {
+                  showAlert(`Error: ${error.message}`, 'danger');
+                  btn.disabled = false;
+                  btn.innerHTML = 'Approve';
+                }
+              });
+            });
+            
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+              btn.addEventListener('click', async function() {
+                const id = this.getAttribute('data-id');
+                if (!id) return;
+                
+                try {
+                  btn.disabled = true;
+                  const loadingSpan = document.createElement('span');
+                  loadingSpan.className = 'spinner-border spinner-border-sm';
+                  loadingSpan.setAttribute('role', 'status');
+                  loadingSpan.setAttribute('aria-hidden', 'true');
+                  btn.innerHTML = '';
+                  btn.appendChild(loadingSpan);
+                  
+                  const response = await fetch('/api/reject-content', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id })
+                  });
+                  
+                  const data = await response.json();
+                  
+                  if (data.success) {
+                    showAlert('Content rejected', 'success');
+                    // Remove the approval card
+                    const card = btn.closest('.approval-item');
+                    if (card) {
+                      card.remove();
+                    }
+                  } else {
+                    showAlert(`Error: ${data.error}`, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Reject';
+                  }
+                } catch (error) {
+                  showAlert(`Error: ${error.message}`, 'danger');
+                  btn.disabled = false;
+                  btn.innerHTML = 'Reject';
+                }
+              });
+            });
+          }
+        }
+      }
+      
+      // Update crawler logs
+      const response3 = await fetch('/api/crawler-logs');
+      const data3 = await response3.json();
+      
+      if (data3.success && data3.logs) {
+        const logsContainer = document.getElementById('crawlerLogs');
+        if (logsContainer) {
+          // Only update if there are new logs
+          if (data3.logs.length !== logsContainer.childElementCount) {
+            logsContainer.innerHTML = '';
+            
+            // Add logs in reverse order (newest first)
+            data3.logs.forEach(log => {
+              const logEntry = document.createElement('div');
+              logEntry.className = `log-entry log-${log.status}`;
+              logEntry.innerHTML = `
+                <div class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</div>
+                <div class="log-source">${log.source}</div>
+                <div class="log-message">${log.message}</div>
+                ${log.url ? `<div class="log-url"><a href="${log.url}" target="_blank">${log.url}</a></div>` : ''}
+              `;
+              logsContainer.appendChild(logEntry);
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for updates:', error);
+    }
+  }, 3000);
+} 

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('partials/head', { title: 'YouTube Downloader' }) %>
+<body class="dark-theme">
+  <%- include('partials/navbar') %>
+  
+  <div class="container my-4">
+    <div class="card mb-4">
+      <div class="card-header bg-dark text-white">
+        <h2><i class="bi bi-youtube"></i> YouTube Downloader</h2>
+      </div>
+      <div class="card-body">
+        <p class="lead">Download videos from YouTube and add them to your media library</p>
+        
+        <form id="youtubeForm" action="/process-youtube" method="POST">
+          <div class="mb-3">
+            <label for="youtubeUrl" class="form-label">YouTube URL</label>
+            <input type="url" class="form-control" id="youtubeUrl" name="youtubeUrl"
+                   placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ" required>
+            <div class="form-text">Enter a YouTube video URL (watch page or youtu.be short URL)</div>
+          </div>
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="outputFormat" class="form-label">Output Format</label>
+              <select class="form-select" id="outputFormat" name="outputFormat">
+                <option value="mp4" selected>MP4</option>
+                <option value="mkv">MKV</option>
+                <option value="webm">WebM</option>
+              </select>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="mediaType" class="form-label">Media Type</label>
+              <select class="form-select" id="mediaType" name="mediaType">
+                <option value="movie" selected>Movie</option>
+                <option value="show">TV Show</option>
+                <option value="trailer">Trailer</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-cloud-download"></i> Process Video
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header bg-light">
+        <h4>How it works</h4>
+      </div>
+      <div class="card-body">
+        <ol class="list-group list-group-numbered mb-4">
+          <li class="list-group-item">Enter a YouTube video URL</li>
+          <li class="list-group-item">Select your desired output format (MP4, MKV, WebM)</li>
+          <li class="list-group-item">Choose the media type (Movie, TV Show, or Trailer)</li>
+          <li class="list-group-item">Click "Process Video" to start the download</li>
+          <li class="list-group-item">The video will be added to your pending approvals in the <a href="/queue">Queue Manager</a></li>
+          <li class="list-group-item">Approve the video to add it to your media library</li>
+        </ol>
+        
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle-fill"></i> YouTube videos will be processed in the background. Check the Queue Manager for status updates.
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <%- include('partials/footer') %>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Form submission handler
+      document.getElementById('youtubeForm').addEventListener('submit', function(e) {
+        // Show loading state on button
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        
+        // Form will submit normally
+      });
+    });
+  </script>
+</body>
+</html> 

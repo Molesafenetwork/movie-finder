@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', { title: 'Preview Content' }) %>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/">Home</a></li>
+          <li class="breadcrumb-item"><a href="/queue">Queue Manager</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Preview</li>
+        </ol>
+      </nav>
+      
+      <h2 class="mb-4">
+        Preview: <%= approval.title %>
+        <span class="badge <%= approval.mediaType === 'movie' ? 'bg-primary' : (approval.mediaType === 'show' ? 'bg-success' : 'bg-secondary') %>">
+          <%= approval.mediaType === 'movie' ? 'Movie' : (approval.mediaType === 'show' ? 'TV Show' : 'Trailer') %>
+        </span>
+      </h2>
+      
+      <div class="row">
+        <div class="col-md-8">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Content Preview</h5>
+            </div>
+            <div class="card-body">
+              <% if (approval.isYouTube && approval.videoId) { %>
+                <!-- YouTube Video Embed -->
+                <div class="ratio ratio-16x9 mb-3">
+                  <iframe 
+                    src="https://www.youtube.com/embed/<%= approval.videoId %>" 
+                    title="<%= approval.title %>" 
+                    allowfullscreen>
+                  </iframe>
+                </div>
+              <% } else if (approval.url && approval.url.includes('youtube.com')) { %>
+                <!-- Extract YouTube ID from URL -->
+                <% 
+                let ytId = '';
+                try {
+                  if (approval.url.includes('youtube.com/watch')) {
+                    const urlObj = new URL(approval.url);
+                    ytId = urlObj.searchParams.get('v') || '';
+                  } else if (approval.url.includes('youtu.be/')) {
+                    ytId = approval.url.split('youtu.be/')[1].split('?')[0] || '';
+                  }
+                } catch (e) {
+                  ytId = '';
+                }
+                %>
+                <% if (ytId) { %>
+                  <div class="ratio ratio-16x9 mb-3">
+                    <iframe 
+                      src="https://www.youtube.com/embed/<%= ytId %>" 
+                      title="<%= approval.title %>" 
+                      allowfullscreen>
+                    </iframe>
+                  </div>
+                <% } else { %>
+                  <div class="alert alert-info">
+                    No preview available. <a href="<%= approval.url %>" target="_blank">View source</a>
+                  </div>
+                <% } %>
+              <% } else { %>
+                <div class="alert alert-info">
+                  No preview available. <a href="<%= approval.url %>" target="_blank">View source</a>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Content Details</h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-2"><strong>ID:</strong> <%= approval.id %></div>
+              <div class="mb-2"><strong>Source:</strong> <%= approval.isYouTube ? 'YouTube' : (approval.source || 'Web') %></div>
+              <div class="mb-2"><strong>Media Type:</strong> <%= approval.mediaType === 'movie' ? 'Movie' : (approval.mediaType === 'show' ? 'TV Show' : 'Trailer') %></div>
+              
+              <% if (approval.mediaType === 'show') { %>
+                <div class="mb-2"><strong>Show Name:</strong> <%= approval.showName || approval.title %></div>
+                <% if (approval.season) { %>
+                  <div class="mb-2"><strong>Season:</strong> <%= approval.season %></div>
+                <% } %>
+                <% if (approval.episode) { %>
+                  <div class="mb-2"><strong>Episode:</strong> <%= approval.episode %></div>
+                <% } %>
+              <% } %>
+              
+              <div class="mb-2"><strong>Format:</strong> <%= approval.format || 'mp4' %></div>
+              <div class="mb-2"><strong>Quality:</strong> <%= approval.quality || 'Unknown' %></div>
+              <div class="mb-2"><strong>Size:</strong> <%= approval.size || 'Unknown' %></div>
+              <div class="mb-2"><strong>Added:</strong> <%= approval.dateAdded ? new Date(approval.dateAdded).toLocaleString() : 'Unknown' %></div>
+              <div class="mb-2"><strong>Source URL:</strong> <a href="<%= approval.url %>" target="_blank">View Source</a></div>
+            </div>
+          </div>
+          
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-grid gap-2">
+                <div class="btn-group" role="group">
+                  <button class="btn btn-success" id="approveButton">
+                    <i class="bi bi-check-circle-fill"></i> Approve
+                  </button>
+                  <button class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">Toggle Dropdown</span>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <button class="dropdown-item" data-media-type="movie">
+                        <i class="bi bi-film"></i> Approve as Movie
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item" data-media-type="show">
+                        <i class="bi bi-tv"></i> Approve as TV Show
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item" data-media-type="trailer">
+                        <i class="bi bi-camera-video"></i> Approve as Trailer
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+                <a href="/reject/<%= approval.id %>" class="btn btn-danger">
+                  <i class="bi bi-x-circle-fill"></i> Reject
+                </a>
+                <a href="/queue" class="btn btn-secondary">
+                  <i class="bi bi-arrow-left"></i> Back to Queue
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set main approve button to use current media type
+    const currentMediaType = '<%= approval.mediaType %>' || 'movie';
+    const approveButton = document.getElementById('approveButton');
+    
+    // Default approve button uses API endpoint with current media type
+    approveButton.addEventListener('click', function(e) {
+      e.preventDefault();
+      approveContent(currentMediaType);
+    });
+    
+    // Handle media type specific approval buttons
+    const mediaTypeButtons = document.querySelectorAll('.dropdown-item[data-media-type]');
+    mediaTypeButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        const mediaType = this.getAttribute('data-media-type');
+        approveContent(mediaType);
+      });
+    });
+    
+    // Function to approve content with specified media type
+    function approveContent(mediaType) {
+      // Show loading state
+      const originalButtonContent = approveButton.innerHTML;
+      approveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Approving...';
+      approveButton.disabled = true;
+      
+      // Send approval request
+      fetch('/api/approve/<%= approval.id %>', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mediaType: mediaType })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Redirect to the specified page
+          window.location.href = data.redirect || '/';
+        } else {
+          showError(data.message || 'Unknown error occurred');
+          
+          // Reset button
+          approveButton.innerHTML = originalButtonContent;
+          approveButton.disabled = false;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred while approving the content.');
+        
+        // Reset button
+        approveButton.innerHTML = originalButtonContent;
+        approveButton.disabled = false;
+      });
+    }
+    
+    // Function to show error message
+    function showError(message) {
+      const errorAlert = document.createElement('div');
+      errorAlert.className = 'alert alert-danger alert-dismissible fade show mt-3';
+      errorAlert.innerHTML = `
+        <strong>Error:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+      
+      document.querySelector('.card-body').appendChild(errorAlert);
+    }
+  });
+</script>
+
+<%- include('partials/footer') %> 

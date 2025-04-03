@@ -1,0 +1,34 @@
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="uploadModalLabel">Upload Media</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label for="mediaType" class="form-label">Media Type</label>
+            <select class="form-select" id="mediaType" name="mediaType">
+              <option value="movie">Movie</option>
+              <option value="show">TV Show</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="media" class="form-label">Choose File</label>
+            <input class="form-control" type="file" id="media" name="media" accept=".mp4,.mkv,.avi">
+            <div class="form-text">
+              Supported formats: MP4, MKV, AVI
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="form-text text-info">
+              <i class="bi bi-info-circle"></i> For TV shows, use naming format: ShowName S01E01
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

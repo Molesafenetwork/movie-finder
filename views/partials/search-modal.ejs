@@ -1,0 +1,137 @@
+<div class="modal fade" id="findContentModal" tabindex="-1" aria-labelledby="findContentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="findContentModalLabel">Find New Content</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="findContentForm">
+          <div class="mb-3">
+            <label for="contentQuery" class="form-label">Movie or Show Title</label>
+            <input type="text" class="form-control" id="contentQuery" placeholder="Enter movie or show title">
+          </div>
+          
+          <div class="mb-3">
+            <label for="mediaType" class="form-label">Content Type</label>
+            <select class="form-select" id="mediaType">
+              <option value="all" selected>All Content</option>
+              <option value="movie">Movie</option>
+              <option value="show">TV Show</option>
+            </select>
+          </div>
+          
+          <div class="mb-3 tv-show-options" style="display: none;">
+            <label for="seasonNumber" class="form-label">Season (Optional)</label>
+            <select class="form-select" id="seasonNumber">
+              <option value="" selected>All Seasons</option>
+              <option value="1">Season 1</option>
+              <option value="2">Season 2</option>
+              <option value="3">Season 3</option>
+              <option value="4">Season 4</option>
+              <option value="5">Season 5</option>
+              <option value="other">Other (Custom)</option>
+            </select>
+          </div>
+          
+          <div class="mb-3 custom-season-input" style="display: none;">
+            <label for="customSeason" class="form-label">Custom Season Number</label>
+            <input type="number" class="form-control" id="customSeason" min="1" placeholder="Enter season number">
+          </div>
+          
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="searchTor" checked>
+            <label class="form-check-label" for="searchTor">
+              Include additional sources (slower but more results)
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+        <div id="searchStatus" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Show/hide season options based on media type
+  document.getElementById('mediaType').addEventListener('change', function() {
+    const tvShowOptions = document.querySelector('.tv-show-options');
+    if (this.value === 'show') {
+      tvShowOptions.style.display = 'block';
+    } else {
+      tvShowOptions.style.display = 'none';
+      // Reset season selection when switching away from TV show
+      document.getElementById('seasonNumber').value = '';
+    }
+  });
+  
+  // Show/hide custom season input
+  document.getElementById('seasonNumber').addEventListener('change', function() {
+    const customSeasonInput = document.querySelector('.custom-season-input');
+    if (this.value === 'other') {
+      customSeasonInput.style.display = 'block';
+    } else {
+      customSeasonInput.style.display = 'none';
+    }
+  });
+
+  document.getElementById('findContentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const query = document.getElementById('contentQuery').value;
+    const mediaType = document.getElementById('mediaType').value;
+    const includeTor = document.getElementById('searchTor').checked;
+    const statusDiv = document.getElementById('searchStatus');
+    
+    // Get season info if applicable
+    let season = null;
+    if (mediaType === 'show') {
+      const seasonSelect = document.getElementById('seasonNumber');
+      if (seasonSelect.value === 'other') {
+        season = document.getElementById('customSeason').value;
+      } else {
+        season = seasonSelect.value;
+      }
+    }
+    
+    if (!query) {
+      statusDiv.innerHTML = '<div class="alert alert-danger">Please enter a title to search for</div>';
+      return;
+    }
+    
+    statusDiv.innerHTML = '<div class="alert alert-info">Searching for content... This may take a few minutes.</div>';
+    
+    fetch('/api/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        query: query,
+        include_onion: includeTor,
+        media_type: mediaType,
+        season: season ? parseInt(season, 10) : null
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        statusDiv.innerHTML = `<div class="alert alert-success">
+          ${data.message}
+          <div class="mt-2">
+            <a href="/queue" class="btn btn-primary btn-sm">
+              <i class="bi bi-list-check"></i> View in Queue Manager
+            </a>
+          </div>
+        </div>`;
+      } else {
+        statusDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+      }
+    })
+    .catch(error => {
+      statusDiv.innerHTML = '<div class="alert alert-danger">Error: Could not process your request</div>';
+      console.error('Error:', error);
+    });
+  });
+</script>

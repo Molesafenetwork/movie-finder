@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>Media Server - TV Shows</title>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  
+  <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>TV Shows</h1>
+      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+        Upload Episode
+      </button>
+    </div>
+    
+    <% if (Object.keys(organizedShows).length > 0) { %>
+      <% Object.keys(organizedShows).forEach(showName => { %>
+        <div class="card mb-4">
+          <div class="card-header">
+            <h2 class="h4 mb-0"><%= showName %></h2>
+          </div>
+          <div class="card-body">
+            <!-- Display seasons in order -->
+            <% if (Object.keys(organizedShows[showName].seasons).length > 0) { %>
+              <% Object.keys(organizedShows[showName].seasons).sort((a, b) => parseInt(a) - parseInt(b)).forEach(seasonNum => { %>
+                <div class="mb-4">
+                  <h3 class="h5">Season <%= seasonNum %></h3>
+                  <div class="row">
+                    <% organizedShows[showName].seasons[seasonNum].forEach(episode => { %>
+                      <div class="col-md-3 mb-3">
+                        <div class="card h-100">
+                          <div class="card-body">
+                            <h5 class="card-title">Episode <%= episode.episode %></h5>
+                            <p class="card-text text-muted"><%= episode.title %></p>
+                          </div>
+                          <div class="card-footer">
+                            <div class="d-flex">
+                              <a href="<%= episode.path %>" class="btn btn-primary btn-sm me-2">Stream</a>
+                              <a href="<%= episode.path %>" class="btn btn-secondary btn-sm" download>Download</a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    <% }) %>
+                  </div>
+                </div>
+              <% }) %>
+            <% } %>
+            
+            <!-- Display unsorted episodes if any -->
+            <% if (organizedShows[showName].unsorted && organizedShows[showName].unsorted.length > 0) { %>
+              <div class="mb-3">
+                <h3 class="h5">Other Episodes</h3>
+                <div class="row">
+                  <% organizedShows[showName].unsorted.forEach(episode => { %>
+                    <div class="col-md-3 mb-3">
+                      <div class="card h-100">
+                        <div class="card-body">
+                          <h5 class="card-title"><%= episode.title %></h5>
+                        </div>
+                        <div class="card-footer">
+                          <div class="d-flex">
+                            <a href="<%= episode.path %>" class="btn btn-primary btn-sm me-2">Stream</a>
+                            <a href="<%= episode.path %>" class="btn btn-secondary btn-sm" download>Download</a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <% }) %>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="alert alert-info">
+        No TV shows available. Upload one to get started!
+      </div>
+    <% } %>
+  </div>
+  
+  <%- include('partials/upload-modal') %>
+  <%- include('partials/search-modal') %>
+  <%- include('partials/footer') %>
+</body>
+</html>
