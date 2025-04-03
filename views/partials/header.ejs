@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('head', { title: typeof title !== 'undefined' ? title : 'Media Server' }) %>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="/">Media Server</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/movies">Movies</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/shows">TV Shows</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/find">Find Content</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/queue">Queue</a>
+          </li>
+        </ul>
+        <form class="d-flex" action="/search" method="GET">
+          <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search">
+          <button class="btn btn-outline-light" type="submit">Search</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+  <div class="container">
+</body>
+</html> 

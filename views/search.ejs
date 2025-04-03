@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>Media Server - Search Results</title>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  
+  <div class="container mt-4">
+    <h1>Search Results: "<%= query %>"</h1>
+    
+    <% if (results.length > 0) { %>
+      <div class="row">
+        <% results.forEach(item => { %>
+          <div class="col-md-3 mb-4">
+            <div class="card h-100">
+              <div class="card-img-top bg-dark d-flex justify-content-center align-items-center" style="height: 160px;">
+                <% if (item.type === 'movie') { %>
+                  <i class="bi bi-film" style="font-size: 4rem; color: rgba(255,255,255,0.5);"></i>
+                <% } else { %>
+                  <i class="bi bi-tv" style="font-size: 4rem; color: rgba(255,255,255,0.5);"></i>
+                <% } %>
+              </div>
+              <div class="card-body">
+                <h5 class="card-title"><%= item.title %></h5>
+                <span class="badge bg-secondary"><%= item.type === 'movie' ? 'Movie' : 'TV Show' %></span>
+              </div>
+              <div class="card-footer">
+                <a href="<%= item.path %>" class="btn btn-primary btn-sm">Watch</a>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="alert alert-info">
+        No results found for "<%= query %>". 
+        <button type="button" class="btn btn-sm btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#findContentModal">
+          Search Online
+        </button>
+      </div>
+    <% } %>
+  </div>
+  
+  <%- include('partials/upload-modal') %>
+  <%- include('partials/search-modal') %>
+  <%- include('partials/footer') %>
+</body>
+</html>

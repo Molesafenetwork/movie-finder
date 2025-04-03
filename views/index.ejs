@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><i class="bi bi-collection-play-fill"></i> Media Server</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/queue">Queue Manager</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div id="alerts"></div>
+    
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <div class="card mb-4">
+          <div class="card-body">
+            <h1 class="text-center mb-4">Media Search</h1>
+            <form id="searchForm" action="/api/search" method="POST">
+              <div class="input-group mb-3">
+                <input type="text" id="searchQuery" name="query" class="form-control form-control-lg" 
+                       placeholder="Search for movies or TV shows..." value="<%= searchQuery %>" required>
+                <button class="btn btn-primary" type="submit">
+                  <i class="bi bi-search"></i> Search
+                </button>
+              </div>
+              
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <select class="form-select" id="mediaType" name="mediaType">
+                    <option value="all">All Media Types</option>
+                    <option value="movie">Movies Only</option>
+                    <option value="show">TV Shows Only</option>
+                  </select>
+                </div>
+                
+                <div class="col-md-6 show-options" style="display: none;">
+                  <div class="input-group">
+                    <span class="input-group-text">Season</span>
+                    <input type="number" class="form-control" id="season" name="season" placeholder="Leave blank for all seasons" min="1">
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h5>Quick Import</h5>
+          </div>
+          <div class="card-body">
+            <form action="/import-video" method="POST" id="importVideoForm">
+              <div class="mb-3">
+                <label for="url" class="form-label">Video URL</label>
+                <div class="input-group">
+                  <input type="url" class="form-control" id="url" name="url" 
+                         placeholder="https://example.com/video.mp4" required>
+                  <button type="button" id="extractInfoBtn" class="btn btn-outline-info">
+                    Extract Info
+                  </button>
+                </div>
+                <div class="form-text">Enter a direct video URL or a link to YouTube, Vimeo, etc.</div>
+              </div>
+              
+              <div id="videoInfoDisplay"></div>
+              
+              <div class="mb-3">
+                <label for="format" class="form-label">Target Format</label>
+                <select class="form-select" id="format" name="format">
+                  <option value="mp4" selected>MP4</option>
+                  <option value="mkv">MKV</option>
+                  <option value="webm">WebM</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-cloud-arrow-down"></i> Import Video
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="bg-light py-3 mt-5">
+    <div class="container text-center">
+      <p class="mb-0">&copy; 2023 Media Server</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show/hide season input based on media type
+      const mediaTypeSelect = document.getElementById('mediaType');
+      const showOptions = document.querySelector('.show-options');
+      
+      if (mediaTypeSelect && showOptions) {
+        mediaTypeSelect.addEventListener('change', function() {
+          showOptions.style.display = this.value === 'show' ? 'block' : 'none';
+        });
+      }
+      
+      // Handle search form submission
+      const searchForm = document.getElementById('searchForm');
+      if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          
+          const query = document.getElementById('searchQuery').value;
+          const mediaType = document.getElementById('mediaType').value;
+          const season = document.getElementById('season')?.value || null;
+          
+          if (!query.trim()) {
+            showAlert('Please enter a search query', 'danger');
+            return;
+          }
+          
+          // Show loading state
+          const submitBtn = searchForm.querySelector('button[type="submit"]');
+          const originalBtnText = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Searching...';
+          
+          // Send request
+          fetch('/api/search', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: query,
+              mediaType: mediaType,
+              season: season
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              showAlert('Search started! Check the Queue Manager for results.', 'success');
+              
+              // Redirect to queue page after a short delay
+              setTimeout(() => {
+                window.location.href = '/queue';
+              }, 1500);
+            } else {
+              showAlert(`Error: ${data.message}`, 'danger');
+            }
+          })
+          .catch(error => {
+            console.error('Error submitting search:', error);
+            showAlert('An error occurred while searching.', 'danger');
+          })
+          .finally(() => {
+            // Restore button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+          });
+        });
+      }
+    });
+  </script>
+</body>
+</html>

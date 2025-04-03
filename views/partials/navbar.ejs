@@ -1,0 +1,37 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" href="/">Media Server</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="/movies">Movies</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/shows">TV Shows</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/youtube">
+            <i class="bi bi-youtube"></i> YouTube Downloader
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#findContentModal">
+            <i class="bi bi-search"></i> Find New Content
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/queue">
+            <i class="bi bi-list-check"></i> Queue Manager
+          </a>
+        </li>
+      </ul>
+      <form class="d-flex" action="/search">
+        <input class="form-control me-2" type="search" name="q" placeholder="Search Library">
+        <button class="btn btn-outline-light" type="submit">Search</button>
+      </form>
+    </div>
+  </div>
+</nav>

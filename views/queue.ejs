@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head') %>
+  <title>Media Server - Queue Manager</title>
+  <style>
+    .approval-item {
+      transition: background-color 0.3s;
+      position: relative;
+    }
+    .approval-item:hover {
+      background-color: rgba(0,0,0,0.03);
+    }
+    .search-progress {
+      height: 5px;
+    }
+    .progress-bar {
+      transition: width 0.5s;
+    }
+    .source-url {
+      word-break: break-all;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 3px;
+    }
+    /* Crawler log with inverted display (newest at top) */
+    .crawler-activity {
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      background: #212529;
+      color: #f8f9fa;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column-reverse;
+    }
+    .crawler-log-entry {
+      margin-bottom: 5px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #444;
+    }
+    .crawler-log-site {
+      color: #0dcaf0;
+    }
+    .crawler-log-message {
+      color: #adb5bd;
+    }
+    .crawler-log-timestamp {
+      color: #6c757d;
+      font-size: 0.8em;
+    }
+    .crawler-log-success {
+      color: #20c997;
+    }
+    .crawler-log-error {
+      color: #dc3545;
+    }
+    .direct-video-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      z-index: 10;
+    }
+    .direct-video-card {
+      border: 2px solid #20c997;
+      box-shadow: 0 0 10px rgba(32, 201, 151, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  
+  <div class="container mt-4">
+    <h1>Queue Manager</h1>
+    
+    <!-- Direct URL Download Card -->
+    <div class="card mb-4">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Add Content by URL</h5>
+      </div>
+      <div class="card-body">
+        <form id="directUrlForm" class="row g-3">
+          <div class="col-md-6">
+            <label for="urlInput" class="form-label">Video URL</label>
+            <input type="url" class="form-control" id="urlInput" placeholder="https://example.com/video.mp4" required>
+            <div class="form-text">Paste direct video URL or streaming link</div>
+          </div>
+          <div class="col-md-3">
+            <label for="mediaTypeSelect" class="form-label">Media Type</label>
+            <select class="form-select" id="mediaTypeSelect" required>
+              <option value="movie">Movie</option>
+              <option value="show">TV Show</option>
+              <option value="trailer">Trailer</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="titleInput" class="form-label">Title</label>
+            <input type="text" class="form-control" id="titleInput" placeholder="Optional title">
+          </div>
+          <div class="col-md-3 show-details" style="display: none;">
+            <label for="seasonInput" class="form-label">Season</label>
+            <input type="number" class="form-control" id="seasonInput" min="1" placeholder="1">
+          </div>
+          <div class="col-md-3 show-details" style="display: none;">
+            <label for="episodeInput" class="form-label">Episode</label>
+            <input type="number" class="form-control" id="episodeInput" min="1" placeholder="1">
+          </div>
+          <div class="col-md-6 trailer-details" style="display: none;">
+            <label for="forMovieInput" class="form-label">For Movie</label>
+            <input type="text" class="form-control" id="forMovieInput" placeholder="Movie title">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-cloud-arrow-down"></i> Add to Queue
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- URL Import Form -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5>Import Media from URL</h5>
+      </div>
+      <div class="card-body">
+        <form action="/import-video" method="POST">
+          <div class="mb-3">
+            <label for="url" class="form-label">Video URL</label>
+            <input type="url" class="form-control" id="url" name="url" placeholder="https://example.com/video.mp4" required>
+            <div class="form-text">Enter a direct video URL or a link to YouTube, Vimeo, or other supported platforms.</div>
+          </div>
+          <div class="mb-3">
+            <label for="format" class="form-label">Convert to Format (optional)</label>
+            <select class="form-select" id="format" name="format">
+              <option value="mp4" selected>MP4</option>
+              <option value="mkv">MKV</option>
+              <option value="webm">WebM</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Import Video</button>
+        </form>
+      </div>
+    </div>
+    
+    <ul class="nav nav-tabs mb-4" id="queueTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="searches-tab" data-bs-toggle="tab" data-bs-target="#searches" type="button" role="tab">
+          Active Searches <span class="badge bg-primary" id="searchesCount"><%= searchQueue.length %></span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab">
+          Pending Approvals <span class="badge bg-danger" id="approvalsCount"><%= pendingApprovals.length %></span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="crawler-tab" data-bs-toggle="tab" data-bs-target="#crawler" type="button" role="tab">
+          Crawler Activity <span class="badge bg-info text-dark" id="crawlerActivityCount">0</span>
+        </button>
+      </li>
+    </ul>
+    
+    <div class="tab-content" id="queueTabsContent">
+      <!-- Active Searches Tab -->
+      <div class="tab-pane fade show active" id="searches" role="tabpanel" aria-labelledby="searches-tab">
+        <% if (searchQueue.length > 0) { %>
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Query</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Created</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="searchQueueTableBody">
+                <% searchQueue.forEach(search => { %>
+                  <tr class="search-item" data-id="<%= search.id %>">
+                    <td><strong><%= search.query %></strong></td>
+                    <td>
+                      <%= search.mediaType === 'movie' ? 'Movie' : 
+                         search.mediaType === 'show' ? 'TV Show' : 'All' %>
+                      <% if (search.season) { %>
+                        <span class="badge bg-secondary">S<%= search.season %></span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (search.status === 'queued') { %>
+                        <span class="badge bg-secondary">Queued</span>
+                      <% } else if (search.status === 'searching') { %>
+                        <span class="badge bg-primary">Searching</span>
+                      <% } else if (search.status === 'completed') { %>
+                        <span class="badge bg-success">Completed</span>
+                      <% } else if (search.status === 'error') { %>
+                        <span class="badge bg-danger">Error</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="progress search-progress">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: <%= search.progress %>%" 
+                             aria-valuenow="<%= search.progress %>" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                      </div>
+                    </td>
+                    <td><%= new Date(search.created).toLocaleString() %></td>
+                    <td><%= search.message %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="alert alert-info">
+            No active searches. Use the "Find New Content" option to search for movies and TV shows.
+          </div>
+        <% } %>
+      </div>
+      
+      <!-- Pending Approvals Tab -->
+      <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
+        <% if (pendingApprovals.length > 0) { %>
+          <div class="row" id="approvalsContainer">
+            <% pendingApprovals.forEach(approval => { %>
+              <div class="col-md-6 col-lg-4 mb-3 approval-container" data-id="<%= approval.id %>">
+                <div class="card approval-item <%= approval.directVideo || approval.isValidVideo ? 'direct-video-card' : '' %>">
+                  <% if (approval.directVideo || approval.isValidVideo) { %>
+                    <div class="direct-video-badge">
+                      <span class="badge bg-success">Direct Video</span>
+                    </div>
+                  <% } %>
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <% if (approval.isTrailer) { %>
+                      <h5 class="mb-0"><i class="bi bi-film"></i> Trailer</h5>
+                    <% } else if (approval.mediaType === 'movie') { %>
+                      <h5 class="mb-0"><i class="bi bi-film"></i> Movie</h5>
+                    <% } else { %>
+                      <h5 class="mb-0"><i class="bi bi-tv"></i> TV Show</h5>
+                    <% } %>
+                    <span class="badge <%= approval.source === 'Tor' ? 'bg-danger' : 'bg-primary' %>">
+                      <%= approval.source %>
+                    </span>
+                  </div>
+                  <div class="card-body">
+                    <h5 class="card-title">
+                      <%= approval.title %>
+                      <% if (approval.isTrailer) { %>
+                        <small class="text-muted">for <%= approval.forMovie %></small>
+                      <% } %>
+                    </h5>
+                    
+                    <% if (approval.mediaType === 'show' && approval.season && approval.episode) { %>
+                      <p class="card-text">
+                        Season <%= approval.season %>, Episode <%= approval.episode %>
+                      </p>
+                    <% } %>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                      <span class="badge bg-secondary"><%= approval.quality %></span>
+                      <span class="badge bg-info text-dark"><%= approval.size %></span>
+                      <% if (approval.duration) { %>
+                        <span class="badge bg-dark"><%= approval.duration %></span>
+                      <% } %>
+                      <% if (approval.isConverted) { %>
+                        <span class="badge bg-success">Converted</span>
+                      <% } %>
+                    </div>
+                    
+                    <% if (approval.url) { %>
+                      <div class="source-url">
+                        <small class="text-muted">Source:</small>
+                        <a href="<%= approval.url %>" target="_blank" class="text-truncate">
+                          <%= approval.url %>
+                        </a>
+                      </div>
+                    <% } %>
+                    
+                    <% if (approval.originalUrl) { %>
+                      <div class="source-url mt-1" style="background-color: #f0f8ff;">
+                        <small class="text-muted">Original Source:</small>
+                        <a href="<%= approval.originalUrl %>" target="_blank" class="text-truncate">
+                          <%= approval.originalUrl %>
+                        </a>
+                      </div>
+                    <% } %>
+                    
+                    <div class="d-grid gap-2 mt-3">
+                      <% if (approval.status === 'pending') { %>
+                        <button class="btn btn-success btn-approve" data-id="<%= approval.id %>">
+                          <i class="bi bi-check-circle"></i> Approve & Download
+                        </button>
+                        <button class="btn btn-outline-danger btn-reject" data-id="<%= approval.id %>">
+                          <i class="bi bi-x-circle"></i> Reject
+                        </button>
+                      <% } else if (approval.status === 'downloading') { %>
+                        <button class="btn btn-primary" disabled>
+                          <span class="spinner-border spinner-border-sm"></span>
+                          Downloading...
+                        </button>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="alert alert-info">
+            No content pending approval. Content found through searches will appear here for your approval.
+          </div>
+        <% } %>
+      </div>
+      
+      <!-- Crawler Activity Tab -->
+      <div class="tab-pane fade" id="crawler" role="tabpanel" aria-labelledby="crawler-tab">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3>Live Crawler Activity</h3>
+          <button class="btn btn-sm btn-outline-secondary" id="clearLogBtn">
+            <i class="bi bi-trash"></i> Clear Log
+          </button>
+        </div>
+        
+        <div class="crawler-activity" id="crawlerActivityLog">
+          <div class="text-center text-muted py-4">
+            Waiting for crawler activity...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <%- include('partials/footer') %>
+  
+  <script>
+    // Global array to store crawler activity logs
+    let crawlerLogs = [];
+    const MAX_LOG_ENTRIES = 100;
+    
+    // Handle direct URL form submission
+    document.getElementById('directUrlForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const urlInput = document.getElementById('urlInput');
+      const mediaTypeSelect = document.getElementById('mediaTypeSelect');
+      const titleInput = document.getElementById('titleInput');
+      const seasonInput = document.getElementById('seasonInput');
+      const episodeInput = document.getElementById('episodeInput');
+      const forMovieInput = document.getElementById('forMovieInput');
+      
+      // Validate URL
+      if (!urlInput.value) {
+        alert('Please enter a valid URL');
+        return;
+      }
+      
+      // Prepare data based on media type
+      const data = {
+        url: urlInput.value,
+        media_type: mediaTypeSelect.value,
+        title: titleInput.value || null
+      };
+      
+      // Add type-specific fields
+      if (mediaTypeSelect.value === 'show') {
+        data.season = seasonInput.value || null;
+        data.episode = episodeInput.value || null;
+      } else if (mediaTypeSelect.value === 'trailer') {
+        data.for_movie = forMovieInput.value || null;
+      }
+      
+      // Disable form and show loading state
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+      
+      // Send request to the server
+      fetch('/api/url-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.status === 'success') {
+          // Clear form
+          urlInput.value = '';
+          titleInput.value = '';
+          seasonInput.value = '';
+          episodeInput.value = '';
+          forMovieInput.value = '';
+          
+          // Show success message
+          alert('URL has been added to the queue for processing');
+          
+          // Refresh the page after a short delay to show the new queue item
+          setTimeout(() => {
+            location.reload();
+          }, 1000);
+        } else {
+          alert('Error: ' + result.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error submitting URL:', error);
+        alert('An error occurred while processing your request.');
+      })
+      .finally(() => {
+        // Re-enable form
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+      });
+    });
+    
+    // Show/hide fields based on media type selection
+    document.getElementById('mediaTypeSelect').addEventListener('change', function() {
+      const showDetails = document.querySelectorAll('.show-details');
+      const trailerDetails = document.querySelectorAll('.trailer-details');
+      
+      if (this.value === 'show') {
+        showDetails.forEach(el => el.style.display = 'block');
+        trailerDetails.forEach(el => el.style.display = 'none');
+      } else if (this.value === 'trailer') {
+        showDetails.forEach(el => el.style.display = 'none');
+        trailerDetails.forEach(el => el.style.display = 'block');
+      } else {
+        showDetails.forEach(el => el.style.display = 'none');
+        trailerDetails.forEach(el => el.style.display = 'none');
+      }
+    });
+    
+    // Poll for updates to search queue and approvals
+    function pollForUpdates() {
+      // Update search statuses
+      document.querySelectorAll('.search-item').forEach(item => {
+        const searchId = item.getAttribute('data-id');
+        
+        fetch(`/api/search/${searchId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              const search = data.search;
+              const row = document.querySelector(`.search-item[data-id="${searchId}"]`);
+              
+              if (row) {
+                // Update status
+                const statusCell = row.querySelector('td:nth-child(3)');
+                let statusHTML = '';
+                
+                if (search.status === 'queued') {
+                  statusHTML = '<span class="badge bg-secondary">Queued</span>';
+                } else if (search.status === 'searching') {
+                  statusHTML = '<span class="badge bg-primary">Searching</span>';
+                } else if (search.status === 'completed') {
+                  statusHTML = '<span class="badge bg-success">Completed</span>';
+                } else if (search.status === 'error') {
+                  statusHTML = '<span class="badge bg-danger">Error</span>';
+                }
+                
+                statusCell.innerHTML = statusHTML;
+                
+                // Update progress
+                const progressBar = row.querySelector('.progress-bar');
+                progressBar.style.width = `${search.progress}%`;
+                progressBar.setAttribute('aria-valuenow', search.progress);
+                
+                // Update message
+                row.querySelector('td:nth-child(6)').textContent = search.message;
+              }
+            }
+          })
+          .catch(error => console.error('Error polling search:', error));
+      });
+      
+      // Get fresh approvals data
+      fetch('/api/approvals')
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            // Update approvals count in tab
+            document.getElementById('approvalsCount').textContent = data.pendingApprovals.length;
+            
+            // If the count has changed, reload the page to show new items
+            const currentApprovalCount = parseInt(document.getElementById('approvalsCount').textContent);
+            if (data.pendingApprovals.length !== currentApprovalCount) {
+              location.reload();
+            }
+          }
+        })
+        .catch(error => console.error('Error polling approvals:', error));
+        
+      // Get crawler activity logs
+      fetch('/api/crawler-logs')
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            // Update logs if there are new entries
+            if (data.logs && data.logs.length > 0) {
+              // Add new logs to our array
+              data.logs.forEach(log => {
+                // Only add if it's not already in our logs (check by timestamp)
+                if (!crawlerLogs.some(existingLog => existingLog.timestamp === log.timestamp)) {
+                  crawlerLogs.push(log);
+                }
+              });
+              
+              // Trim logs to maximum size
+              if (crawlerLogs.length > MAX_LOG_ENTRIES) {
+                crawlerLogs = crawlerLogs.slice(-MAX_LOG_ENTRIES);
+              }
+              
+              // Update the UI
+              updateCrawlerActivityLog();
+            }
+            
+            // Update the badge count
+            document.getElementById('crawlerActivityCount').textContent = crawlerLogs.length;
+          }
+        })
+        .catch(error => console.error('Error polling crawler logs:', error));
+    }
+    
+    // Function to update the crawler activity log display
+    function updateCrawlerActivityLog() {
+      const logContainer = document.getElementById('crawlerActivityLog');
+      
+      if (crawlerLogs.length === 0) {
+        logContainer.innerHTML = `
+          <div class="text-center text-muted py-4">
+            Waiting for crawler activity...
+          </div>
+        `;
+        return;
+      }
+      
+      // Sort logs by timestamp (newest first)
+      const sortedLogs = [...crawlerLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      // Generate HTML for logs
+      const logsHtml = sortedLogs.map(log => {
+        let statusClass = '';
+        if (log.status === 'success') statusClass = 'crawler-log-success';
+        else if (log.status === 'error') statusClass = 'crawler-log-error';
+        
+        return `
+          <div class="crawler-log-entry">
+            <span class="crawler-log-timestamp">[${new Date(log.timestamp).toLocaleTimeString()}]</span>
+            <span class="crawler-log-site">${log.site}</span>
+            <span class="crawler-log-message ${statusClass}">${log.message}</span>
+            ${log.query ? `<div><small>Query: "${log.query}"</small></div>` : ''}
+          </div>
+        `;
+      }).join('');
+      
+      logContainer.innerHTML = logsHtml;
+      
+      // No need to scroll since we're displaying in reverse order with newest at top
+    }
+    
+    // Setup approval and rejection handlers
+    document.addEventListener('DOMContentLoaded', function() {
+      // Approve button click handlers
+      document.querySelectorAll('.btn-approve').forEach(button => {
+        button.addEventListener('click', function() {
+          const approvalId = this.getAttribute('data-id');
+          const card = document.querySelector(`.approval-container[data-id="${approvalId}"]`);
+          
+          // Show downloading state
+          this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Downloading...';
+          this.disabled = true;
+          const rejectBtn = card.querySelector('.btn-reject');
+          if (rejectBtn) rejectBtn.disabled = true;
+          
+          // Call the approve API
+          fetch(`/api/approve/${approvalId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              action: 'approve'
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              // Remove the card with animation
+              card.style.opacity = '0';
+              setTimeout(() => {
+                card.remove();
+                
+                // Update approvals count
+                const count = document.querySelectorAll('.approval-container').length;
+                document.getElementById('approvalsCount').textContent = count;
+                
+                // Show empty message if no more approvals
+                if (count === 0) {
+                  document.getElementById('approvalsContainer').innerHTML = 
+                    '<div class="col-12"><div class="alert alert-info">No content pending approval.</div></div>';
+                }
+              }, 500);
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error approving content:', error);
+            alert('An error occurred while approving the content.');
+          });
+        });
+      });
+      
+      // Reject button click handlers
+      document.querySelectorAll('.btn-reject').forEach(button => {
+        button.addEventListener('click', function() {
+          const approvalId = this.getAttribute('data-id');
+          const card = document.querySelector(`.approval-container[data-id="${approvalId}"]`);
+          
+          if (confirm('Are you sure you want to reject this content?')) {
+            // Disable buttons
+            this.disabled = true;
+            const approveBtn = card.querySelector('.btn-approve');
+            if (approveBtn) approveBtn.disabled = true;
+            
+            // Call the reject API
+            fetch(`/api/approve/${approvalId}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                action: 'reject'
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                // Remove the card with animation
+                card.style.opacity = '0';
+                setTimeout(() => {
+                  card.remove();
+                  
+                  // Update approvals count
+                  const count = document.querySelectorAll('.approval-container').length;
+                  document.getElementById('approvalsCount').textContent = count;
+                  
+                  // Show empty message if no more approvals
+                  if (count === 0) {
+                    document.getElementById('approvalsContainer').innerHTML = 
+                      '<div class="col-12"><div class="alert alert-info">No content pending approval.</div></div>';
+                  }
+                }, 500);
+              } else {
+                alert('Error: ' + data.message);
+              }
+            })
+            .catch(error => {
+              console.error('Error rejecting content:', error);
+              alert('An error occurred while rejecting the content.');
+            });
+          }
+        });
+      });
+      
+      // Clear log button handler
+      document.getElementById('clearLogBtn').addEventListener('click', function() {
+        crawlerLogs = [];
+        updateCrawlerActivityLog();
+        document.getElementById('crawlerActivityCount').textContent = '0';
+      });
+      
+      // Set up polling
+      setInterval(pollForUpdates, 2000);
+    });
+  </script>
+</body>
+</html> 

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('partials/head', { title }) %>
+<body class="dark-theme">
+  <%- include('partials/navbar') %>
+  
+  <div class="container my-4">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2>Test Result</h2>
+      </div>
+      <div class="card-body">
+        <div class="alert <%= result.success ? 'alert-success' : 'alert-danger' %>">
+          <h4 class="mb-3"><%= result.success ? 'Success' : 'Error' %></h4>
+          <p class="mb-2"><%= result.message %></p>
+          <% if (!result.success && result.error) { %>
+            <div class="mt-3 p-3 bg-dark text-light rounded">
+              <code><%= result.error %></code>
+            </div>
+          <% } %>
+        </div>
+        
+        <% if (result.success) { %>
+          <div class="mt-4">
+            <h4>Video Details</h4>
+            <table class="table">
+              <tbody>
+                <tr>
+                  <th>Title</th>
+                  <td><%= result.videoTitle %></td>
+                </tr>
+                <tr>
+                  <th>Size</th>
+                  <td><%= result.videoSize %></td>
+                </tr>
+                <tr>
+                  <th>Quality</th>
+                  <td><%= result.videoQuality %></td>
+                </tr>
+                <tr>
+                  <th>Processing Time</th>
+                  <td><%= result.processingTime %></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="mt-4">
+            <h4>Preview</h4>
+            <div class="ratio ratio-16x9">
+              <video controls class="embed-responsive-item">
+                <source src="<%= result.videoPath %>" type="video/mp4">
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+          
+          <div class="mt-4">
+            <a href="<%= result.videoPath %>" class="btn btn-primary" download>
+              <i class="fas fa-download"></i> Download Video
+            </a>
+            <a href="/" class="btn btn-secondary">
+              <i class="fas fa-home"></i> Back to Home
+            </a>
+          </div>
+        <% } else { %>
+          <div class="mt-4">
+            <a href="/" class="btn btn-secondary">
+              <i class="fas fa-home"></i> Back to Home
+            </a>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  
+  <%- include('partials/footer') %>
+</body>
+</html> 
